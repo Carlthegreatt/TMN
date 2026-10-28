@@ -1,0 +1,118 @@
+@import "tailwindcss";
+
+/* framed sheet: tinted frame, white sheet, borders not shadows, colour only on data and status */
+:root {
+  color-scheme: light;
+  --ground: #eef2f4; --surface: #ffffff; --raised: #f5f7f9; --active: #e3e9ed;
+  --border: #e3e8ec; --rule: #eef1f3; --control: #c4cbd1;
+  --text: #131a1f; --muted: #5a6670; --accent: #0a6c7b;
+  --primary: #1d1f20; --on-primary: #ffffff;
+  --positive: #1e7b4f; --negative: #c4242a;
+  --av-bg: 90%; --av-fg: 22%;
+  --pill-green-bg: #d9f7e3; --pill-green-ink: #04250e;
+  --pill-red-bg: #ffe9e6; --pill-red-ink: #831c1e;
+  --pill-amber-bg: #fff1cc; --pill-amber-ink: #7a3408;
+  --pill-info-bg: #dcf0f5; --pill-info-ink: #0e3f4c;
+  --pill-neutral-bg: #e6ecf0; --pill-neutral-ink: #34424b;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #0a1116; --surface: #101a21; --raised: #15212a; --active: #1c2b36;
+  --border: #213039; --rule: #192630; --control: #3a4f5f;
+  --text: #e9f0f4; --muted: #95a7b3; --accent: #4dd0e1;
+  --primary: #e9f0f4; --on-primary: #0a1116;
+  --positive: #4ade80; --negative: #f87171;
+  --av-bg: 24%; --av-fg: 86%;
+  --pill-green-bg: #123020; --pill-green-ink: #86efac;
+  --pill-red-bg: #3a1a1d; --pill-red-ink: #fecaca;
+  --pill-amber-bg: #3a2c10; --pill-amber-ink: #fcd34d;
+  --pill-info-bg: #0f2f38; --pill-info-ink: #99e1ee;
+  --pill-neutral-bg: #1f2c35; --pill-neutral-ink: #b8c7d1;
+}
+
+@theme inline {
+  --font-sans: var(--font-plex), ui-sans-serif, system-ui, sans-serif;
+  --color-ground: var(--ground); --color-surface: var(--surface); --color-raised: var(--raised);
+  --color-active: var(--active); --color-line: var(--border); --color-rule: var(--rule);
+  --color-control: var(--control); --color-ink: var(--text); --color-muted: var(--muted);
+  --color-accent: var(--accent); --color-primary: var(--primary);
+  --color-positive: var(--positive); --color-negative: var(--negative);
+}
+
+@keyframes sheet-in { from { opacity: 0; transform: translateY(8px); } }
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes tick-pop { from { transform: scale(0.5); } }
+
+@layer base {
+  /* the whole app scales with the screen: everything below is in rem */
+  html { font-size: 16px; }
+  @media (min-width: 1100px) { html { font-size: 17px; } }
+  @media (min-width: 1700px) { html { font-size: 18px; } }
+  @media (min-width: 2300px) { html { font-size: 20px; } }
+  body { @apply bg-ground text-ink antialiased; font-variant-numeric: tabular-nums; }
+  :focus-visible { @apply outline-2 outline-offset-2 outline-accent; }
+  .theme-anim, .theme-anim * { transition: background-color 0.25s, border-color 0.25s, color 0.25s !important; }
+  @media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+  }
+}
+
+@layer components {
+  .page-title { @apply text-[1.5rem] font-semibold leading-8 text-ink; }
+  .section-title { @apply mb-2 text-base font-semibold text-ink; }
+  .sub { @apply text-sm text-muted; }
+  .card { @apply rounded-lg border border-line bg-surface p-5; }
+  .label { @apply mb-2 block text-sm font-medium text-ink; }
+  .input {
+    @apply h-9 w-full rounded-md border border-control bg-surface px-3 text-sm text-ink transition-colors
+      placeholder:text-muted hover:border-muted focus:border-accent;
+  }
+  select.input { @apply pr-8; }
+  .btn {
+    @apply inline-flex h-9 cursor-pointer items-center justify-center whitespace-nowrap rounded-md bg-primary px-4 text-sm font-medium transition-opacity
+      hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50;
+    color: var(--on-primary);
+  }
+  .btn-ghost {
+    @apply inline-flex h-8 cursor-pointer items-center justify-center whitespace-nowrap rounded-md border border-control bg-surface px-3 text-[0.8125rem] font-medium
+      text-ink transition-colors hover:bg-raised disabled:cursor-default disabled:opacity-60;
+  }
+  .btn:active:not(:disabled), .btn-ghost:active:not(:disabled) { transform: scale(0.98); }
+
+  /* tables: grey sentence-case header, rules between rows, no fills */
+  table { @apply w-full border-collapse; }
+  .th { @apply whitespace-nowrap px-3 py-2.5 text-left text-xs font-normal text-muted; }
+  thead tr { border-bottom: 1px solid var(--border); }
+  tbody tr { border-top: 1px solid var(--rule); @apply transition-colors hover:bg-raised; }
+  tbody tr:first-child { border-top: 0; }
+  .td { @apply h-12 px-3 text-sm; }
+  .num { @apply text-right; }
+
+  /* a set of figures is one container split by hairlines */
+  .kpi-strip { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; overflow: hidden; background: var(--border); @apply rounded-lg border border-line; }
+  .kpi-strip > * { @apply bg-surface p-5; }
+  .kpi-strip > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+  @media (min-width: 768px) { .kpi-strip { grid-template-columns: repeat(var(--cols, 4), 1fr); } .kpi-strip > :last-child:nth-child(odd) { grid-column: auto; } }
+  .kpi-value { @apply text-[1.75rem] leading-9 text-ink; }
+
+  .pill { @apply inline-flex h-5 items-center whitespace-nowrap rounded-full px-2 text-xs font-medium capitalize; }
+  .pill-green { background: var(--pill-green-bg); color: var(--pill-green-ink); }
+  .pill-red { background: var(--pill-red-bg); color: var(--pill-red-ink); }
+  .pill-amber { background: var(--pill-amber-bg); color: var(--pill-amber-ink); }
+  .pill-info { background: var(--pill-info-bg); color: var(--pill-info-ink); }
+  .pill-neutral { background: var(--pill-neutral-bg); color: var(--pill-neutral-ink); }
+  .alert-error { background: var(--pill-red-bg); color: var(--pill-red-ink); }
+
+  .empty { @apply rounded-lg border border-dashed border-control px-4 py-3 text-center text-sm text-muted; }
+
+  /* feedback only: a sheet opening, a box being ticked */
+  dialog[open] { animation: sheet-in 0.2s ease-out; }
+  dialog::backdrop { animation: fade-in 0.2s ease-out; }
+  button[aria-pressed="true"] svg { animation: tick-pop 0.2s ease-out; }
+  .theme-sun { display: none; }
+  :root[data-theme="dark"] .theme-moon { display: none; }
+  :root[data-theme="dark"] .theme-sun { display: block; }
+
+  /* comfortable touch targets on phones and tablets */
+  @media (pointer: coarse) { .btn, .btn-ghost, .input { min-height: 2.75rem; } }
+}
