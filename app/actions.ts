@@ -1,7 +1,7 @@
 "use server";
 
 import { randomBytes } from "node:crypto";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { COOKIE, SESSION_MS, getUser, requireHR, requireUser } from "@/lib/auth";
@@ -39,7 +39,7 @@ export async function login(_: string | null, fd: FormData) {
   run("INSERT INTO sessions VALUES(?,?,?)", token, u.id, Date.now() + SESSION_MS);
   (await cookies()).set(COOKIE, token, {
     httpOnly: true, sameSite: "lax", path: "/", maxAge: SESSION_MS / 1000,
-    secure: process.env.NODE_ENV === "production",
+    secure: (await headers()).get("x-forwarded-proto") === "https", // a Secure cookie on plain http would silently break login
   });
   redirect("/");
 }

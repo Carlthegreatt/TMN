@@ -1,5 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
+import { dirname } from "node:path";
+import { seedDemo } from "./demo.ts";
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS employees(
@@ -33,23 +35,33 @@ CREATE TABLE IF NOT EXISTS attendance(
   day TEXT NOT NULL, clock_in TEXT NOT NULL, clock_out TEXT, UNIQUE(employee_id, day));
 `;
 
+// MVP storage: one SQLite file. Serverless hosts only allow writes in /tmp, so use it there;
+// set DB_PATH to point at a persistent disk anywhere else.
+const PATH = process.env.DB_PATH ?? (process.env.VERCEL ? "/tmp/hr.db" : "data/hr.db");
+
 // one connection per process; globalThis survives dev hot reloads
 const g = globalThis as unknown as { hrdb?: DatabaseSync };
 function open() {
-  mkdirSync("data", { recursive: true });
-  const d = new DatabaseSync("data/hr.db");
+  mkdirSync(dirname(PATH), { recursive: true });
+  const d = new DatabaseSync(PATH);
   d.exec("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;");
   d.exec(SCHEMA);
+  // an empty database gets the demo company so a fresh deploy has logins; DEMO_DATA=0 turns this off
+  if (process.env.DEMO_DATA !== "0" && !d.prepare("SELECT 1 FROM users").get()) {
+    try { seedDemo(d); } catch (e) { if (!String(e).includes("UNIQUE")) throw e; } // another process seeded first
+  }
   return d;
 }
-const db = (g.hrdb ??= open());
+// opened on first query, never at import: `next build` imports every page and must not touch the file
+export const getDb = () => (g.hrdb ??= open());
 
 type P = (string | number | null)[];
-export const all = <T>(sql: string, ...p: P) => db.prepare(sql).all(...p) as T[];
-export const get = <T>(sql: string, ...p: P) => db.prepare(sql).get(...p) as T | undefined;
-export const run = (sql: string, ...p: P) => db.prepare(sql).run(...p);
+export const all = <T>(sql: string, ...p: P) => getDb().prepare(sql).all(...p) as T[];
+export const get = <T>(sql: string, ...p: P) => getDb().prepare(sql).get(...p) as T | undefined;
+export const run = (sql: string, ...p: P) => getDb().prepare(sql).run(...p);
 
 export function tx<T>(fn: () => T): T {
+  const db = getDb();
   db.exec("BEGIN");
   try {
     const r = fn();

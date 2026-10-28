@@ -1,6 +1,9 @@
 // usage: ADMIN_EMAIL=you@co.com ADMIN_PASSWORD=longpassword pnpm seed
-import { get, run } from "../lib/db.ts";
 import { hashPassword } from "../lib/password.ts";
+
+// an admin-only database: stop the empty-database demo seeding before lib/db opens it
+process.env.DEMO_DATA = "0";
+const { get, run } = await import("../lib/db.ts");
 
 const email = process.env.ADMIN_EMAIL;
 const pw = process.env.ADMIN_PASSWORD;
