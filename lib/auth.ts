@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { get } from "./db";
+import { verify } from "./session";
 
 export type User = { id: number; email: string; role: "hr" | "employee"; employee_id: number | null };
 
@@ -10,10 +11,10 @@ export const SESSION_MS = 7 * 864e5;
 export async function getUser() {
   const token = (await cookies()).get(COOKIE)?.value;
   if (!token) return null;
-  return get<User>(
-    "SELECT u.id,u.email,u.role,u.employee_id FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=? AND s.expires>?",
-    token, Date.now(),
-  ) ?? null;
+  const id = verify(token);
+  if (id === null) return null;
+  // looked up on every request, so deleting a user (an exited employee) revokes their login at once
+  return get<User>("SELECT id,email,role,employee_id FROM users WHERE id=?", id) ?? null;
 }
 
 export async function requireUser() {

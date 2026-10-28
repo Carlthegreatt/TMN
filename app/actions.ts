@@ -1,12 +1,12 @@
 "use server";
 
-import { randomBytes } from "node:crypto";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { COOKIE, SESSION_MS, getUser, requireHR, requireUser } from "@/lib/auth";
 import { get, run, tx } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/password";
+import { sign } from "@/lib/session";
 import {
   EXIT_TYPES, LEAVE_TYPES, OFFBOARDING, ONBOARDING, RETIREMENT_EXTRA, STAGES,
   retirementDate, today, type Employee,
@@ -35,8 +35,7 @@ export async function login(_: string | null, fd: FormData) {
     "SELECT id,password FROM users WHERE email=?", String(fd.get("email") ?? "").trim().toLowerCase(),
   );
   if (!u || !verifyPassword(String(fd.get("password") ?? ""), u.password)) return "Wrong email or password";
-  const token = randomBytes(32).toString("hex");
-  run("INSERT INTO sessions VALUES(?,?,?)", token, u.id, Date.now() + SESSION_MS);
+  const token = sign(u.id, Date.now() + SESSION_MS);
   (await cookies()).set(COOKIE, token, {
     httpOnly: true, sameSite: "lax", path: "/", maxAge: SESSION_MS / 1000,
     secure: (await headers()).get("x-forwarded-proto") === "https", // a Secure cookie on plain http would silently break login
@@ -46,8 +45,6 @@ export async function login(_: string | null, fd: FormData) {
 
 export async function logout() {
   const jar = await cookies();
-  const t = jar.get(COOKIE)?.value;
-  if (t) run("DELETE FROM sessions WHERE token=?", t);
   jar.delete(COOKIE);
   redirect("/login");
 }
@@ -156,7 +153,7 @@ export async function completeExit(fd: FormData) {
   if (open) throw new Error("finish all offboarding tasks first");
   tx(() => {
     run("UPDATE employees SET status='exited' WHERE id=? AND status='offboarding'", id);
-    run("DELETE FROM users WHERE employee_id=?", id); // revokes login; sessions cascade
+    run("DELETE FROM users WHERE employee_id=?", id); // revokes login: getUser finds no row
   });
   refresh();
 }
